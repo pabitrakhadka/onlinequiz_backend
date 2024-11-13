@@ -1,0 +1,42 @@
+try {
+    if (!req.body) {
+        return res.status(400).json({ status: false, error: "Body is Missing or Invalid." });
+    }
+
+    // Validate the request body using the schema
+    const { error, value } = quizSchema.validate(req.body, { abortEarly: false });
+
+    if (error) {
+        console.log("Data validation errors:", error);
+        return res.status(400).json({ error: error.details.map((detail) => detail.message) });
+    }
+
+    const { category, question, options, answer } = value;
+
+    // Create the quiz entry
+    const addQuiz = await prisma.quiz.create({
+        data: {
+            category: category,
+            question: question,
+            answer: answer,
+
+        }
+    });
+    const optionPromises = options.map((optionText) => {
+        return prisma.option.create({
+            data: {
+                text: optionText,
+                quizId: addQuiz.id,
+            },
+        });
+    });
+    await Promise.all(optionPromises);
+
+    // Return success response
+    return res.status(200).json({
+        status: true,
+        message: "Quiz and options created successfully",
+        data: addQuiz,
+    });
+
+}
