@@ -9,6 +9,7 @@ console.log(ALLOWED_ORIGINS);
 
 const cors = initMiddleware(
     Cors({
+
         origin: (origin, callback) => {
             if (ALLOWED_ORIGINS.includes(origin) || !origin) {
                 callback(null, true);
@@ -16,8 +17,11 @@ const cors = initMiddleware(
                 callback(new Error('Not allowed by CORS'));
             }
         },
+
         credentials: true,
-    })
+    },),
+
+
 );
 
 export default cors;

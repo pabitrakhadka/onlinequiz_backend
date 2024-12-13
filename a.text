@@ -1,0 +1,112 @@
+[
+  {
+    "category": "Relevant Legislations and Institutions",
+    "question": "What is one of the primary goals of Nepal's ICT Policy, 2072?",
+    "options": [
+      "To increase internet access to 100% of the population",
+      "To promote the use of ICT in rural areas",
+      "To create a single government data center",
+      "To establish private data centers in every district"
+    ],
+    "answer": "To promote the use of ICT in rural areas"
+  },
+  {
+    "category": "Relevant Legislations and Institutions",
+    "question": "What is the main focus of the Electronic Transaction Act, 2063?",
+    "options": [
+      "Regulating digital transactions",
+      "Increasing digital literacy",
+      "Building government data centers",
+      "Managing public internet access"
+    ],
+    "answer": "Regulating digital transactions"
+  },
+  {
+    "category": "Relevant Legislations and Institutions",
+    "question": "What is the role of the Information Technology Emergency Response Team (ITERT) under Directive 2075?",
+    "options": [
+      "To monitor data centers",
+      "To respond to IT-related emergencies",
+      "To manage government websites",
+      "To increase digital literacy"
+    ],
+    "answer": "To respond to IT-related emergencies"
+  },
+  {
+    "category": "Relevant Legislations and Institutions",
+    "question": "According to the Government Website Development and Management Directive, 2078, what is essential for all government websites?",
+    "options": [
+      "A uniform design and security protocol",
+      "Integration with social media",
+      "24/7 support for the public",
+      "Data storage in private data centers"
+    ],
+    "answer": "A uniform design and security protocol"
+  },
+  {
+    "category": "Relevant Legislations and Institutions",
+    "question": "What is a primary function of the Ministry of Communication and Information Technology in Nepal?",
+    "options": [
+      "Managing the electronic payment system",
+      "Overseeing national ICT policies and regulations",
+      "Developing private sector data centers",
+      "Providing direct IT support to businesses"
+    ],
+    "answer": "Overseeing national ICT policies and regulations"
+  },
+  {
+    "category": "Relevant Legislations and Institutions",
+    "question": "What is one of the key responsibilities of the Department of Information Technology?",
+    "options": [
+      "Maintaining government data security",
+      "Promoting e-commerce businesses",
+      "Providing grants for private IT firms",
+      "Issuing digital identity cards"
+    ],
+    "answer": "Maintaining government data security"
+  },
+  {
+    "category": "Relevant Legislations and Institutions",
+    "question": "What is the main purpose of the Government Integrated Data Center managed by the National Information Technology Center?",
+    "options": [
+      "To centralize data storage for government agencies",
+      "To promote ICT education in schools",
+      "To provide internet access in rural areas",
+      "To support private sector data initiatives"
+    ],
+    "answer": "To centralize data storage for government agencies"
+  },
+  {
+    "category": "Relevant Legislations and Institutions",
+    "question": "What is a core responsibility of the Security Operation/Monitoring Center?",
+    "options": [
+      "Responding to IT-related security incidents",
+      "Designing government websites",
+      "Creating social media policies",
+      "Issuing electronic transaction licenses"
+    ],
+    "answer": "Responding to IT-related security incidents"
+  },
+  {
+    "category": "Relevant Legislations and Institutions",
+    "question": "Which sector does Nepal's ICT Policy, 2072 primarily focus on for digital development?",
+    "options": [
+      "Healthcare",
+      "Education and rural areas",
+      "E-commerce",
+      "Transportation"
+    ],
+    "answer": "Education and rural areas"
+  },
+  {
+    "category": "Relevant Legislations and Institutions",
+    "question": "What legal provision does the Electronic Transaction Act, 2063 provide?",
+    "options": [
+      "Provisions for electronic signatures",
+      "Guidelines for software development",
+      "Regulations on data pricing",
+      "Rules for physical transactions"
+    ],
+    "answer": "Provisions for electronic signatures"
+  }
+]
