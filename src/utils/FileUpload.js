@@ -31,18 +31,16 @@ export { pdfUpload };
 //Define the directory for Excel upload
 
 //String to Number Function
-export const ConvertNumber = (input) => {
-    // Check if the input is already a number
-    if (typeof input === 'number' && !isNaN(input)) {
-        return input; // Return the number directly
-    }
+const ConvertNumber = (input) => {
 
-    // Check if the input is a string and can be converted to a number
+    if (typeof input === 'number' && !isNaN(input)) {
+
+        return input;
+    }
     if (typeof input === 'string' && !isNaN(input)) {
         return parseInt(input, 10); // Convert string to number
     }
-
-    // If the input is neither a valid number nor a numeric string, return NaN
     return NaN;
 };
 
+export { ConvertNumber }

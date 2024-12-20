@@ -3,6 +3,9 @@ import prisma from "@/db/db.config";
 import { verifyPassword } from "@/utils/hashPassword";
 import { generateAccessToken, generateRefreshToken } from "@/utils/token";
 import cors from "@/lib/cors-middleware";
+import { serialize } from 'cookie';
+import setAuthCookies from "@/utils/SetCookies";
+import { ConvertNumber } from "@/utils/FileUpload";
 
 export default async function handler(req, res) {
     try {
@@ -11,6 +14,8 @@ export default async function handler(req, res) {
             case "POST":
                 await handlerPostRequest(req, res);
                 break;
+            case "GET":
+                await logoutHandler(req, res);
             default:
                 res.status(405).json({ status: false, message: "Method not allowed" });
                 break;
@@ -20,6 +25,7 @@ export default async function handler(req, res) {
         return res.status(500).json({ status: false, message: "Internal server error" });
     }
 }
+
 
 const handlerPostRequest = async (req, res) => {
     try {
@@ -58,25 +64,55 @@ const handlerPostRequest = async (req, res) => {
                 token: refreshToken,
             }
         });
-        res.setHeader("Set-Cookie", [
-            `accessToken=${accessToken}; HttpOnly; Secure; SameSite=Strict; Max-Age=900; Path=/`,
-            `refreshToken=${refreshToken}; HttpOnly; Secure; SameSite=Strict; Max-Age=604800; Path=/`,
-        ]);
+        // Serialize cookies
+
+        await setAuthCookies(res, accessToken, refreshToken);
 
         res.status(200).json({
             status: true,
             message: "Login successful",
-            user: {
+            data: {
                 id: user.id,
-                firstName: user.firstName,
-                lastName: user.lastName,
+                name: `${user.firstName} ${user.lastName}`,
                 email: user.email,
+                accessToken: accessToken,
+                refreshToken: refreshToken,
             },
-            accessToken,
-            refreshToken,
+
         });
     } catch (error) {
         console.error("Error in Login Post Request:", error);
         return res.status(500).json({ status: false, message: "Something went wrong" });
+    }
+};
+
+const logoutHandler = async (req, res) => {
+
+    try {
+        const id = req.query?.id;
+        if (!id) {
+
+        }
+        const isUser = await prisma.user.findFirst({
+            where: {
+                id: ConvertNumber(id)
+            }
+        })
+        if (isUser) {
+            const updateToken = await prisma.user.update({
+                where: {
+                    id: isUser.id
+                }, data: {
+                    token: null
+                }
+            });
+        }
+        res.setHeader('Set-Cookie', [
+            serialize('accessToken', '', { maxAge: 0, path: '/' }),
+            serialize('refreshToken', '', { maxAge: 0, path: '/' }),
+        ]);
+        res.status(200).json({ message: 'Logged out successfully' });
+    } catch (error) {
+
     }
 };

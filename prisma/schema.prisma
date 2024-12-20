@@ -8,18 +8,20 @@ datasource db {
 }
 
 model User {
-  id         Int                @id @default(autoincrement())
-  firstName  String
-  lastName   String
-  email      String             @unique
-  password   String
-  address    String
-  token      String?
-  createdAt  DateTime           @default(now())
-  updatedAt  DateTime           @updatedAt
-  userScores UserDetailsScore[]
-  user       UserDetails[]
-  isActive   Boolean            @default(true)
+  id        Int      @id @default(autoincrement())
+  firstName String
+  lastName  String
+  email     String   @unique
+  password  String
+  address   String
+  token     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     UserDetails[]
+  isActive Boolean       @default(true)
+
+  QuizSession QuizSession[]
 }
 
 model UserDetails {
@@ -37,14 +39,36 @@ model Option {
   quiz   Quiz   @relation(fields: [quizId], references: [id])
 }
 
-model UserDetailsScore {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  quizId    Int
-  score     Int
-  createdAt DateTime @default(now())
-  quiz      Quiz     @relation(fields: [quizId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+model QuizSession {
+  id         Int      @id @default(autoincrement())
+  categoryId Int //like  id 1=set1 , set 2 of id 
+  userId     Int
+  score      Float
+  timeTaken  Int // time taken
+  datePlayed DateTime @default(now())
+  attempt    Int      @default(1) ///
+  position   Int? // Nullable for cases where ranking isn't calculated immediately
+
+  // Relations
+  category Category            @relation(fields: [categoryId], references: [id])
+  user     User                @relation(fields: [userId], references: [id])
+  details  QuizSessionDetail[]
+
+  @@unique([categoryId, userId]) // Ensures unique session per user and quiz
+}
+
+model QuizSessionDetail {
+  id         Int         @id @default(autoincrement())
+  sessionId  Int
+  questionId Int
+  isCorrect  Boolean
+  timeSpent  Int? // Optional, time spent on this question
+  quiz       Quiz        @relation(fields: [questionId], references: [id])
+  // Relations
+  session    QuizSession @relation(fields: [sessionId], references: [id])
+
+  @@unique([sessionId, questionId]) // Prevent duplicate entries per question in the same session
+  @@index([sessionId]) // For efficient lookups by session
 }
 
 model Category {
@@ -55,6 +79,8 @@ model Category {
   subjectiveQuestions    SubjectiveQuestion[]
   SubjectiveQuestionOnly SubjectiveQuestionOnly[]
   PdfSubjectiveQuestion  PdfSubjectiveQuestion[]
+  QuizSession            QuizSession[]
+  isActive               Boolean                  @default(true)
 }
 
 model News {
@@ -102,15 +128,15 @@ model Contacts {
 }
 
 model Quiz {
-  id          Int                @id @default(autoincrement())
-  question    String
-  description String?
-  answer      String
-  categoryId  Int
-  category    Category           @relation(fields: [categoryId], references: [id]) // Link to Category
-  createdAt   DateTime           @default(now())
-  options     Option[]
-  userScores  UserDetailsScore[]
+  id                Int                 @id @default(autoincrement())
+  question          String
+  description       String?
+  answer            String
+  categoryId        Int
+  category          Category            @relation(fields: [categoryId], references: [id]) // Link to Category
+  createdAt         DateTime            @default(now())
+  options           Option[]
+  QuizSessionDetail QuizSessionDetail[]
 }
 
 model SubjectiveQuestion {
@@ -139,4 +165,16 @@ model PdfSubjectiveQuestion {
   category   Category @relation(fields: [categoryId], references: [id]) // Link to Category
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+model SliderImage {
+  id       Int     @id @default(autoincrement())
+  fileName String
+  isActive Boolean @default(true)
+}
+
+model Slug {
+  id          Int    @id @default(autoincrement())
+  title       String
+  description String
 }

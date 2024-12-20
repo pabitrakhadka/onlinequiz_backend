@@ -1,7 +1,7 @@
 import { quizSchema } from "@/data_validator";
 import prisma from "@/db/db.config";
 import cors from "@/lib/cors-middleware";
-import { ConvertNumber } from "@/methods/FileUpload";
+import { ConvertNumber } from "@/utils/FileUpload";
 
 export default async function handler(req, res) {
     try {
@@ -29,64 +29,107 @@ export default async function handler(req, res) {
 
 const handlePostRequest = async (req, res) => {
     try {
+        // Validate request body
         if (!req.body || (Array.isArray(req.body) && req.body.length === 0)) {
-            return res.status(400).json({ status: false, error: "Body is missing or invalid." });
+            return res.status(400).json({
+                status: false,
+                error: "Body is missing or invalid.",
+            });
         }
 
-        // Check if the body is an array (multiple questions) or a single object (one question)
         const questions = Array.isArray(req.body) ? req.body : [req.body];
 
         // Validate each question using the schema
         for (const question of questions) {
             try {
-                quizSchema.validate(question, { abortEarly: false });
+                console.log("question=", question);
+                await quizSchema.validateAsync(question, { abortEarly: false });
             } catch (validationError) {
-                const errors = validationError.inner.map((detail) => detail.message);
-                return res.status(400).json({ status: false, error: errors });
+                const errors = validationError.details.map((detail) => detail.message);
+                return res.status(400).json({
+                    status: false,
+                    error: "Validation Error",
+                    details: errors,
+                });
             }
         }
 
-        // Process each question
-        const quizCreationPromises = questions.map(async ({ categoryId, question, options, answer, description }) => {
-            console.log("Quiz data:", categoryId, question, options, answer, description);
+        // Prepare bulk data for quizzes and options
+        const quizData = [];
+        const optionData = [];
 
+        questions.forEach(({ categoryId, question, options, answer, description }) => {
+            const numericCategoryId = ConvertNumber(categoryId); // Convert categoryId to number
 
+            if (isNaN(numericCategoryId)) {
+                throw new Error(`Invalid categoryId: ${categoryId}`);
+            }
 
-            // Create the quiz
-            const createdQuiz = await prisma.quiz.create({
-                data: {
-                    categoryId: ConvertNumber(categoryId),
-                    question: question,
-                    description: description,
-                    answer: answer,
-                },
+            // Prepare quiz data for bulk insertion
+            quizData.push({
+                categoryId: numericCategoryId,  // Correct assignment
+                question,
+                description,
+                answer
             });
 
-            // Create associated options
-            const optionPromises = options.map((optionText) =>
-                prisma.option.create({
-                    data: {
-                        text: optionText,
-                        quizId: createdQuiz.id,
-                    },
-                })
-            );
-            await Promise.all(optionPromises);
-
-            return createdQuiz;
+            // Prepare options data for bulk insertion
+            options.forEach((optionText) => {
+                optionData.push({
+                    text: optionText,
+                    quizId: null, // Will be updated later after quiz creation
+                });
+            });
         });
 
-        // Wait for all quizzes to be created
-        const addedQuizzes = await Promise.all(quizCreationPromises);
+        // Insert quizzes in bulk
+        const createdQuizzes = await prisma.quiz.createMany({
+            data: quizData,
+            skipDuplicates: true, // Skip duplicates based on unique constraints
+        });
+
+        // Get the quiz IDs after insertion to associate with options
+        const createdQuizIds = createdQuizzes.count > 0 ? await prisma.quiz.findMany({
+            where: {
+                question: { in: quizData.map((q) => q.question) }
+            },
+            select: { id: true, question: true }
+        }) : [];
+
+        // Update option data with correct quiz IDs
+        createdQuizIds.forEach((quiz, index) => {
+            const quizId = quiz.id;
+            const optionsForQuiz = optionData.slice(index * 4, (index + 1) * 4); // 4 options per quiz
+            optionsForQuiz.forEach((option) => {
+                option.quizId = quizId;
+            });
+        });
+
+        // Insert options in bulk
+        await prisma.option.createMany({
+            data: optionData,
+            skipDuplicates: true, // Skip duplicates based on unique constraints
+        });
 
         // Return success response
         return res.status(200).json({
             status: true,
             message: "Quiz and options created successfully",
-            data: addedQuizzes,
+            data: createdQuizzes,
         });
     } catch (error) {
         console.error("Post Error:", error);
+
+        // Handle specific Prisma errors if needed
+        if (error.code && error.meta) {
+            return res.status(400).json({
+                status: false,
+                error: "Database Error",
+                details: error.meta,
+            });
+        }
+
+        // Generic error response
         return res.status(500).json({
             status: false,
             error: "Internal Server Error",
@@ -95,199 +138,142 @@ const handlePostRequest = async (req, res) => {
     }
 };
 
+
+// const page = parseInt(req.query.page) || 1;
+// const limit = parseInt(req.query.limit) || 10;
+// const skip = (page - 1) * limit;
+// const { category, value, id, categoryId } = req.query;
+
+// if (id) {
+//     const quiz = await prisma.quiz.findFirst({
+//         where: { id: ConvertNumber(id) },
+//         include: { options: true },
+//     });
+
+//     if (!quiz) {
+//         return res.status(404).json({ status: false, message: "Quiz not found" });
+//     }
+
+//     return res.status(200).json({ status: true, data: quiz });
+// }
+
+// if (categoryId) {
+//     const quizzes = await prisma.quiz.findMany({
+//         where: { categoryId: ConvertNumber(categoryId) },
+//         include: { options: true },
+//         take: limit,
+//         skip,
+//     });
+
+//     const totalQuizzes = await prisma.quiz.count({ where: { categoryId: ConvertNumber(categoryId) } });
+
+//     return res.status(200).json({
+//         status: true,
+//         data: quizzes,
+//         currentPage: page,
+//         totalPages: Math.ceil(totalQuizzes / limit),
+//     });
+// }
+
+// if (category) {
+//     const condition = category === "test" ? { category: "test" } : {};
+
+//     const quizzes = await prisma.quiz.findMany({
+//         where: { ...condition },
+//         include: { options: true },
+//         take: limit,
+//         skip,
+//     });
+
+//     return res.status(200).json({ status: true, data: quizzes });
+// }
 const handlerGetRequest = async (req, res) => {
     try {
+        // Convert the quizId query parameter
+        const quizId = ConvertNumber(req.query?.quizId);
 
-
-        const id = req.query?.id;
-        const categoryId = req.query?.categoryId;
-        if (categoryId) {
-            const data = await prisma.quiz.findMany({
+        // If quizId is provided, return specific quiz data
+        if (quizId) {
+            const quiz = await prisma.quiz.findFirst({
                 where: {
-                    categoryId: ConvertNumber(categoryId)
-                }, include: {
-                    options: true
-                }
-            });
-            return res.status(200).json({
-                status: true,
-                data: data,
-
-            });
-
-        }
-        if (id) {
-            // Check if the quiz exists
-            const existingQuiz = await prisma.quiz.findFirst({
-                where: {
-                    id: ConvertNumber(id)
-                }
-            });
-            if (!existingQuiz) {
-                return res.status(404).json({ status: false, message: "Quiz not found" });
-            }
-            const data = await prisma.quiz.findMany({
-                where: {
-                    id: ConvertNumber(id)
-                }, include: {
-                    options: true
-                }
-            });
-            if (data) {
-                return res.status(200).json(data);
-            }
-        }
-
-        else {
-
-
-            const page = parseInt(req.query.page) || 1;
-            const limit = parseInt(req.query.limit) || 5;
-            const skip = (page - 1) * limit;
-            const category = req.query.category;
-            const value = req.query.value;
-            const categoryId = ConvertNumber(category);
-
-            if (category) {
-                // Convert category to number (if valid)
-
-
-                // Fetch quizzes by category
-                const quizQuestion = await prisma.quiz.findMany({
-                    where: {
-                        categoryId: categoryId,
-                    },
-                    include: {
-                        options: true,
-                    },
-                    take: limit,
-                    skip: skip,
-                });
-
-                // Count total quizzes in the category
-                const totalQuestion = await prisma.quiz.count({
-                    where: {
-                        categoryId: categoryId,
-                    },
-                });
-
-                return res.status(200).json({
-                    status: true,
-                    data: quizQuestion,
-                    currentPage: page,
-                    totalPages: Math.ceil(totalQuestion / limit),
-                });
-            }
-
-
-            if (category === "test") {
-                // Fetch test quizzes
-                const quizQuestion = await prisma.quiz.findMany({
-                    where: {
-                        categoryId: categoryId,
-                    },
-                    include: {
-                        options: true,
-                    },
-                    take: 5,
-                });
-
-                return res.status(200).json({ status: true, data: quizQuestion });
-            }
-
-            // If neither category nor value is valid
-            return res.status(400).json({ status: false, message: "Invalid query parameters provided." });
-        }
-    } catch (error) {
-        console.error("Error fetching quiz questions:", error);
-        return res.status(500).json({ status: false, error: error.message || "Internal Server Error" });
-    }
-};
-
-
-const handlerPutRequest = async (req, res) => {
-    try {
-        if (!req.body || !req.query.id) {
-            return res.status(400).json({ status: false, message: "Body or ID is Missing." });
-        }
-
-        const id = ConvertNumber(req.query.id);
-
-        if (!id || isNaN(id)) {
-            return res.status(400).json({ status: false, message: "Invalid ID." });
-        }
-
-        // Validate Question
-        const { error, value } = quizSchema.validate(req.body);
-        if (error) {
-            return res.status(400).json({ status: false, message: error.details[0].message });
-        } else {
-            const { question, answer, categoryId, options, description } = value;
-
-            // Update Question
-            const updatedQuiz = await prisma.quiz.update({
-                where: {
-                    id: id
+                    id: quizId,
                 },
-                data: {
-                    question: question,
-                    answer: answer,
-                    categoryId: ConvertNumber(categoryId),  // Ensure categoryId is set correctly
-                    description: description,
-                }
+                include: {
+                    options: true,
+                },
             });
+            if (quiz) {
+                return res.status(200).json({ status: true, data: quiz });
+            } else {
+                return res.status(404).json({ status: false, error: "Quiz not found" });
+            }
+        }
 
-            // Fetch existing options for the quiz
-            const existingOptions = await prisma.option.findMany({
-                where: { quizId: updatedQuiz.id },
-            });
+        // Default pagination parameters
+        const { page = 1, limit = 5, categoryId, previousFetchedIds } = req.query;
 
-            // Process options for the quiz
-            const optionPromises = options.map(async (optionText, index) => {
-                const existingOption = existingOptions.find(
-                    (option) => option.id === options[index]?.id
-                );
-                if (existingOption) {
-                    // Update the existing option
-                    return prisma.option.update({
-                        where: { id: existingOption.id },
-                        data: { text: optionText, quizId: updatedQuiz.id },
-                    });
-                } else {
-                    // Create new option if it doesn't exist
-                    return prisma.option.create({
-                        data: { text: optionText, quizId: updatedQuiz.id },
-                    });
-                }
-            });
+        // Convert query parameters to numbers
+        const pageNumber = parseInt(page, 10);
+        const limitNumber = parseInt(limit, 10);
+        const categoryNumber = categoryId ? ConvertNumber(categoryId) : null;
+        const alreadyFetchedIds = previousFetchedIds ? previousFetchedIds.split(",").map(Number) : [];
 
-            // Wait for all option updates to complete
-            await Promise.all(optionPromises);
-
-            // Optional: Delete options that are not in the request (if you want to remove outdated options)
-            const optionIdsInRequest = options.map((option) => option?.id).filter(Boolean);
-            const optionsToDelete = existingOptions.filter(
-                (option) => !optionIdsInRequest.includes(option.id)
-            );
-            const deletePromises = optionsToDelete.map((option) =>
-                prisma.option.delete({
-                    where: { id: option.id },
-                })
-            );
-            await Promise.all(deletePromises);
-
-            // Return success response
-            return res.status(200).json({
-                status: true,
-                message: "Quiz and options updated successfully.",
-                data: updatedQuiz,
+        // Validate pagination values
+        if (isNaN(pageNumber) || pageNumber < 1 || isNaN(limitNumber) || limitNumber < 1) {
+            return res.status(400).json({
+                status: false,
+                error: "Invalid page or limit value. Must be a positive number.",
             });
         }
+
+        // Pagination calculation
+        const skip = (pageNumber - 1) * limitNumber;
+
+        // Fetch questions and total count
+        const [questions, countTotalQuestion] = await Promise.all([
+            prisma.quiz.findMany({
+                where: {
+                    categoryId: categoryNumber,
+                    NOT: {
+                        id: { in: alreadyFetchedIds },  // Exclude previously fetched quizzes
+                    },
+                },
+                include: {
+                    options: true,
+                },
+                take: limitNumber,
+                skip: skip,
+            }),
+            prisma.quiz.count({
+                where: {
+                    categoryId: categoryNumber,
+                    NOT: {
+                        id: { in: alreadyFetchedIds },  // Exclude previously fetched quizzes
+                    },
+                },
+            }),
+        ]);
+
+        // Check if there are more quizzes
+        const hasMoreQuizzes = questions.length < countTotalQuestion;
+
+        // Respond with data
+        return res.status(200).json({
+            data: questions,
+            totalQuestion: countTotalQuestion,
+            currentPage: pageNumber,
+            totalPages: Math.ceil(countTotalQuestion / limitNumber),
+            hasMore: hasMoreQuizzes, // To help the frontend decide if more quizzes can be fetched
+        });
     } catch (error) {
-        console.error("Error updating quiz or options:", error);
-        return res.status(500).json({ status: false, message: "Oops! Something went wrong." });
+        console.error("Error fetching quizzes:", error.message || error);
+        return res.status(500).json({ status: false, error: "Internal Server Error" });
     }
 };
+
+
+
+
 
 
 

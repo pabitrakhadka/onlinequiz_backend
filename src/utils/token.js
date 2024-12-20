@@ -33,7 +33,7 @@ const generateAccessToken = (user) => {
     return jwt.sign(
         { id: user.id, email: user.email },
         ACCESS_TOKEN_SECRET,
-        { expiresIn: '15m' } // Token expires in 15 minutes
+        { expiresIn: '1h' } // Token expires in 10s
     );
 };
 

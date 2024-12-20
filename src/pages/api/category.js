@@ -1,6 +1,7 @@
 import { CategoriesSchema, CategorySchema } from "@/data_validator";
 import prisma from "@/db/db.config";
 import cors from "@/lib/cors-middleware";
+import { ConvertNumber } from "@/utils/FileUpload";
 
 export default async function handler(req, res) {
     try {
@@ -74,11 +75,7 @@ const handlePostRequest = async (req, res) => {
                 data: category,
             });
         }
-        const category = await prisma.category.create({
-            data: {
-                categoryName,
-            },
-        });
+
 
         // Respond with success
         return res.status(401).json({
@@ -174,21 +171,58 @@ const handlePostRequest = async (req, res) => {
 
 const handleGetRequest = async (req, res) => {
     try {
+
+        const page = ConvertNumber(req.query.page) || 1;
+        const limit = ConvertNumber(req.query.page) || 10;
+        const skip = (page - 1) * limit;
         const category = req.query.category;
         if (category === "select_set") {
             const categoriesName = await prisma.category.findMany({
                 where: {
+                    isActive: true,
                     categoryName: {
                         startsWith: "Set"
                     }
+
                 },
                 select: {
-                    categoryName: true
-                }
+                    categoryName: true,
+                    id: true,
+                }, take: limit,
+                skip: skip
             });
-            return res.status(200).json({ status: true, data: categoriesName })
+            const totalSet = await prisma.category.count({
+                where: {
+                    isActive: true,
+                    categoryName: {
+                        startsWith: "Set"
+                    }
+                }
+            })
+            return res.status(200).json({ status: true, data: categoriesName, currentPage: page, totalSet: Math.ceil(totalSet / limit) })
+        }
+        if (category === "notset") {
+            const categoriesName = await prisma.category.findMany({
+                where: {
+                    isActive: true,
+                    categoryName: {
+                        not: {
+                            startsWith: "Set",
+                        },
+                    },
+                },
+                select: {
+
+                    categoryName: true,
+                    id: true,
+                },
+            });
+            return res.status(200).json({ status: true, data: categoriesName });
         }
         const data = await prisma.category.findMany({
+            where: {
+                isActive: true,
+            },
             select: {
                 id: true,
                 categoryName: true
@@ -218,9 +252,12 @@ const handleDeleteRequest = async (req, res) => {
         }
 
         // Attempt to delete the category with the given ID
-        const deleteCategory = await prisma.category.delete({
+        const deleteCategory = await prisma.category.update({
             where: {
                 id: parseInt(id), // Convert ID to an integer
+            },
+            data: {
+                isActive: false,
             }
         });
 

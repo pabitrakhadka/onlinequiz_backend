@@ -12,31 +12,31 @@ export default async function handler(req, res) {
                 await handlerPostRequest(req, res);
                 break;
             default:
-                res.status(405).json({ status: false, message: "Method not allowed" });
+                res.status(405).json({ status: false, message: "Method not allowed" }); // 405 for unsupported methods
                 break;
         }
     } catch (error) {
         console.error("Error in Register API:", error);
-        return res.status(500).json({ status: false, message: "Internal server error" });
+        return res.status(500).json({ status: false, message: "Internal server error" }); // 500 for server errors
     }
 }
 
 const handlerPostRequest = async (req, res) => {
     try {
         if (!req.body) {
-            return res.status(400).json({ status: false, message: "Request body is missing." });
+            return res.status(400).json({ status: false, message: "Request body is missing." }); // 400 for bad requests
         }
 
         const { error, value } = registerSchema.validate(req.body);
         if (error) {
-            return res.status(400).json({ status: false, message: error.details[0].message });
+            return res.status(422).json({ status: false, message: error.details[0].message }); // 422 for validation errors
         }
 
         const { firstName, lastName, email, address, password } = value;
 
         const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser) {
-            return res.status(400).json({ status: false, message: "User already exists!" });
+            return res.status(409).json({ status: false, message: "User already exists!" }); // 409 for conflict (duplicate user)
         }
 
         const hashedPassword = await hashPassword(password);
@@ -44,16 +44,16 @@ const handlerPostRequest = async (req, res) => {
             data: { firstName, lastName, email, address, password: hashedPassword },
         });
 
-        const user = { id: newUser.id, email: newUser.email };
-        const accessToken = generateAccessToken(user);
-        const refreshToken = generateRefreshToken(user);
+        // const user = { id: newUser.id, email: newUser.email };
+        // const accessToken = generateAccessToken(user);
+        // const refreshToken = generateRefreshToken(user);
 
-        res.setHeader("Set-Cookie", [
-            `accessToken=${accessToken}; HttpOnly; Secure; SameSite=Strict; Max-Age=900; Path=/`,
-            `refreshToken=${refreshToken}; HttpOnly; Secure; SameSite=Strict; Max-Age=604800; Path=/`,
-        ]);
+        // res.setHeader("Set-Cookie", [
+        //     `accessToken=${accessToken}; HttpOnly; Secure; SameSite=Strict; Max-Age=900; Path=/`,
+        //     `refreshToken=${refreshToken}; HttpOnly; Secure; SameSite=Strict; Max-Age=604800; Path=/`,
+        // ]);
 
-        res.status(201).json({
+        return res.status(201).json({
             status: true,
             message: "User registered successfully",
             user: {
@@ -61,12 +61,10 @@ const handlerPostRequest = async (req, res) => {
                 firstName: newUser.firstName,
                 lastName: newUser.lastName,
                 email: newUser.email,
-            },
-            accessToken,
-            refreshToken,
-        });
+            }
+        }); // 201 for successful resource creation
     } catch (error) {
         console.error("Error in Register Post Request:", error);
-        return res.status(500).json({ status: false, message: "Something went wrong" });
+        return res.status(500).json({ status: false, message: "Internal server error" }); // 500 for server errors
     }
 };

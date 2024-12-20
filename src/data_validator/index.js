@@ -70,7 +70,7 @@ const registerSchema = Joi.object({
     email: EmailValidate(),
     address: Joi.string()
         .min(3)
-        .max(20)
+        .max(50)
         .required()
         .messages({
             "string.min": "Too Short!",
@@ -78,6 +78,11 @@ const registerSchema = Joi.object({
             "any.required": "Required"
         }),
     password: Joi.string().min(4).max(50).messages({
+        "string.min": "Too Short!",
+        "string.max": "Too Long!",
+        "any.required": "Required"
+    }),
+    confirm_password: Joi.string().min(4).max(50).messages({
         "string.min": "Too Short!",
         "string.max": "Too Long!",
         "any.required": "Required"
@@ -89,6 +94,18 @@ const loginSchema = Joi.object({
     email: EmailValidate(),
     password: passwordValidate()
 });
+
+const idValidate = () => Joi.number()
+    .integer() // Ensures the value is an integer
+    .positive() // Ensures the value is positive
+    .required() // Ensures the field is mandatory
+    .messages({
+        'number.base': '"NumberField" should be a number.',
+        'number.positive': '"NumberField" must be a positive number.',
+        'number.integer': '"NumberField" must be an integer.',
+        'any.required': '"NumberField" is required.',
+    });
+
 
 const quizSchema = Joi.object({
     question: Joi.string()
@@ -106,9 +123,9 @@ const quizSchema = Joi.object({
     categoryId: Joi.number()
         .required()
         .messages({
-            'number.base': '"NumberField" should be a number',
-            'number.empty': '"NumberField" is required',
-            'any.required': '"NumberField" is required'
+            'number.base': '"CategoryId" should be a number',
+            'number.empty': '"CategoryId" is required',
+            'any.required': '"CategoryId" is required'
         }),
     options: Joi.array()
         .items(Joi.string().required())
@@ -119,8 +136,6 @@ const quizSchema = Joi.object({
             'array.length': '"Options" should contain exactly 4 items',
             'array.includesRequiredUnknowns': '"Options" should only contain strings'
         }),
-
-
     description: Joi.string()
         .allow(null, '')
         .optional()
@@ -221,5 +236,59 @@ const CategoriesSchema = Joi.alternatives().try(
     Joi.array().items(CategorySchema).min(1)  // At least one category required in the array
 );
 
+const userDetailsScoreSchema = Joi.object({
+    userId: idValidate(),
+    quizId: idValidate(),
+    score: Joi.number()
+        .min(0) // Allow 0 or any positive number, including floats
+        .required()
+        .messages({
+            'number.base': 'Score must be a number.',
+            'number.min': 'Score cannot be negative.',
+        }),
+    attempt: Joi.number()
+        .integer()
+        .min(0) // Allow 0 as a valid attempt
+        .required()
+        .messages({
+            'number.base': 'Attempt must be a number.',
+            'number.min': 'Attempt cannot be negative.',
+        }),
+
+    timeTaken: Joi.number()
+        .integer()
+        .min(0) // Allow 0 seconds for time taken
+        .required()
+        .messages({
+            'number.base': 'Time Taken must be a number.',
+            'number.min': 'Time Taken cannot be negative.',
+        }),
+
+    correctAnswer: Joi.number()
+        .integer()
+        .min(0) // Allow 0 correct answers
+        .required()
+        .messages({
+            'number.base': 'Correct Answer count must be a number.',
+            'number.min': 'Correct Answer count cannot be negative.',
+        }),
+
+    wrongAnswer: Joi.number()
+        .integer()
+        .min(0) // Allow 0 wrong answers
+        .required()
+        .messages({
+            'number.base': 'Wrong Answer count must be a number.',
+            'number.min': 'Wrong Answer count cannot be negative.',
+        }),
+
+});
+//Slider Image Validator
+
+//Slug validate
+const slugSchema = Joi.object({
+    title: stringValidate(),
+    description: stringValidate()
+});
 //Export Schemas
-export { registerSchema, loginSchema, quizSchema, newsSchema, subjectiveQuestionSchema, pdfFileSchema, contactSchema, CategorySchema, CategoriesSchema };
+export { registerSchema, loginSchema, quizSchema, newsSchema, subjectiveQuestionSchema, pdfFileSchema, contactSchema, CategorySchema, CategoriesSchema, userDetailsScoreSchema, slugSchema };

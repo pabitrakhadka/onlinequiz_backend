@@ -1,7 +1,7 @@
 import { pdfFileSchema } from "@/data_validator";
 import prisma from "@/db/db.config";
 import cors from "@/lib/cors-middleware";
-import { ConvertNumber, pdfUpload } from "@/methods/FileUpload";
+import { ConvertNumber, pdfUpload } from "@/utils/FileUpload";
 
 
 export default async function handler(req, res) {
@@ -104,49 +104,84 @@ const handlerPostRequest = async (req, res) => {
 
 const handlerGetRequest = async (req, res) => {
     try {
-        const data = await prisma.pdfSubjectiveQuestion.findMany({
+        const data = req.query.data;
+
+        // Handle 'getCategoryId' request
+        if (data === 'getCategoryId') {
+
+            const result = await prisma.pdfSubjectiveQuestion.findMany({
+                include: {
+                    category: {
+                        select: {
+                            categoryName: true
+                        }
+                    }
+                }
+            });
+            return res.status(200).json({ data: result });
+        }
+
+        // Handle fetching all questions with category information
+        const allQuestionsData = await prisma.pdfSubjectiveQuestion.findMany({
             include: {
                 category: {
                     select: {
                         categoryName: true,
-                    }
-                }
-            }
+                    },
+                },
+            },
         });
-        if (data) {
-            return res.status(200).json({ data });
+        if (allQuestionsData) {
+            return res.status(200).json({ data: allQuestionsData });
         }
-        const id = req.query?.id;
-        if (id) {
 
+        // Handle fetching a specific question by ID
+        const id = req.query?.id;
+        console.log("id=", id);
+        if (id) {
             const pdfFile = await prisma.pdfSubjectiveQuestion.findFirst({
                 where: {
-                    id: ConvertNumber(id)
-                }
-            })
-            return res.status(200).json({ status: true, data: pdfFile });
-        }
-        const category = req.query.category;
-        if (category) {
-            const data = await prisma.pdfSubjectiveQuestion.findFirst({
-                where: {
-                    category: category
+                    id: ConvertNumber(id),
+                }, select: {
+                    fileName: true
                 }
             });
-            if (data) {
-                return res.status(200).json({ data });
+            if (pdfFile) {
+                return res.status(200).json({ status: true, data: pdfFile });
+            } else {
+                return res.status(404).json({ error: "Question not found" });
             }
         }
-        if (category === "all") {
-            const data = await prisma.pdfSubjectiveQuestion.findMany();
-            if (data) {
-                return res.status(200).json({ data });
+
+        // Handle fetching by category
+        const category = req.query.category;
+        if (category) {
+            if (category === "all") {
+                const allCategoryData = await prisma.pdfSubjectiveQuestion.findMany();
+                return res.status(200).json({ data: allCategoryData });
+            } else {
+                const categoryData = await prisma.pdfSubjectiveQuestion.findFirst({
+                    where: {
+                        category: category,
+                    },
+                });
+                if (categoryData) {
+                    return res.status(200).json({ data: categoryData });
+                } else {
+                    return res.status(404).json({ error: "No questions found for this category" });
+                }
             }
         }
+
+        // If no valid query is found
+        return res.status(400).json({ error: "Invalid request parameters" });
+
     } catch (error) {
         console.log(error);
+        return res.status(500).json({ error: "Internal Server Error" });
     }
-}
+};
+
 
 const handleDeleteRequest = async (req, res) => {
     try {

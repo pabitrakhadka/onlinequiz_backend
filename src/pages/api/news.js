@@ -1,7 +1,7 @@
 
 import prisma from "@/db/db.config";
 import cors from "@/lib/cors-middleware";
-import { ConvertNumber, imageUpload } from "@/methods/FileUpload";
+import { ConvertNumber, imageUpload } from "@/utils/FileUpload";
 export default async function handler(req, res) {
     try {
         await cors(req, res);
@@ -41,35 +41,49 @@ const handlerPostRequest = async (req, res) => {
                 return res.status(500).json({ error: "Error uploading image" });
             } else {
                 const { heading, description } = req.body;
-                const imageName = req.file.filename;
+                const imageName = req.file?.filename;  // Get the image file name if uploaded
 
+                // Prepare data to be saved
+                const newsData = {
+                    description: description,
+                    heading: heading,
+                };
+
+                // If image is uploaded, include it in the data
+                if (imageName) {
+                    newsData.image = imageName;
+                }
+
+                // Create a new news entry in the database
                 const saveNews = await prisma.news.create({
-                    data: {
-                        image: imageName,
-                        description: description,
-                        heading: heading
-                    }
-                })
-                if (saveNews) {
+                    data: newsData,
+                });
 
+
+
+                if (saveNews) {
                     return res.status(200).json({
                         message: "Data and image uploaded successfully",
-                        data: saveNews
+                        data: saveNews,
                     });
+                } else {
+                    return res.status(500).json({ error: "Failed to save news" });
                 }
             }
         });
-
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: "Internal Server Error" });
+        return res.status(500).json({ error: "Internal Server Error" });
     }
 };
 
 const handlerGetRequest = async (req, res) => {
     try {
+        const page = ConvertNumber(req.query?.page) || 1;
+        const limit = ConvertNumber(req.query?.limit) || 6;
+        const skip = (page - 1) * limit;
         const id = req.query?.id;
-        console.log(parseInt(id));
+
         if (id) {
             const data = await prisma.news.findFirst({
                 where: {
@@ -78,9 +92,13 @@ const handlerGetRequest = async (req, res) => {
             });
             res.status(200).json(data);
         } else {
-            const data = await prisma.news.findMany();
+            const data = await prisma.news.findMany({
+                take: limit,
+                skip: skip
+            });
+            const countNews = await prisma.news.count();
             if (data) {
-                res.status(200).json(data);
+                res.status(200).json({ status: true, data: data, currentPage: page, totalPage: Math.ceil(countNews / limit) });
             } else {
                 res.status(500).json({ error: "Internal Server Error" });
             }

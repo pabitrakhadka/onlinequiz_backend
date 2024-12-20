@@ -1,7 +1,7 @@
 import * as formidable from 'formidable';
 import prisma from "@/db/db.config";
 import cors from "@/lib/cors-middleware";
-import { ConvertNumber } from "@/methods/FileUpload";
+import { ConvertNumber } from "@/utils/FileUpload";
 
 export default async function handler(req, res) {
     try {

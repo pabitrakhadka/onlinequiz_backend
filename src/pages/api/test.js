@@ -1,15 +1,8 @@
-import * as formidable from 'formidable';
 
-import { pdfFileSchema } from "@/data_validator";
-import prisma from "@/db/db.config";
 import cors from "@/lib/cors-middleware";
-import { ConvertNumber } from "@/methods/FileUpload";
+import isUserValid from "@/utils/isUserValid";
 
-export const config = {
-    api: {
-        bodyParser: false,
-    },
-};
+
 
 export default async function handler(req, res) {
     try {
@@ -28,53 +21,28 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: "Internal server error" });
     }
 }
+// Adjust the import path
 
 const handlerPostRequest = async (req, res) => {
     try {
-        const form = new formidable.IncomingForm();  // ES Module usage
+        // Await the result of isUserValid function
+        const validationResult = await isUserValid(req, res);
 
-        form.parse(req, async (err, fields, files) => {
-            if (err) {
-                console.error("Form parse error:", err);
-                return res.status(500).json({ error: "Error parsing form data" });
-            }
+        if (!validationResult.valid) {
+            // If the token is invalid, return an error response
+            return res.status(401).json({ message: validationResult.message });
+        }
 
-            console.log(fields);  // This will contain 'categoryId' and 'fileName'
+        // Handle valid user response
+        const { user, newAccessToken } = validationResult;
 
-            const { categoryId, fileName } = fields;
-            if (!categoryId || !fileName) {
-                return res.status(400).json({ error: "Missing categoryId or fileName" });
-            }
+        console.log("User is valid:", validationResult);
 
-            const parsedCategory = ConvertNumber(categoryId);
-
-            console.log(fileName);
-            console.log(parsedCategory);
-            console.log(typeof fileName);
-            console.log(typeof parsedCategory);
-
-            try {
-                // Save to the database
-                // const pdfFileSave = await prisma.pdfSubjectiveQuestion.create({
-                //     data: {
-                //         fileName: fileName,
-                //         categoryId: parsedCategory,
-                //     },
-                // });
-
-                // Return success response
-                return res.status(200).json({
-                    status: true,
-                    message: "PDF file uploaded successfully",
-                    data: "pdfFileSave",
-                });
-            } catch (dbError) {
-                console.error("Database error:", dbError);
-                return res.status(500).json({ error: "Error saving to database" });
-            }
-        });
+        // Further actions based on valid user data, like updating user info, etc.
+        return res.status(200).json({ message: "User is valid", user });
     } catch (error) {
-        console.error("Error in handlerPostRequest:", error);
+        console.error("Error in handler:", error);
         return res.status(500).json({ error: "Internal server error" });
     }
+
 };
