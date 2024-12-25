@@ -60,7 +60,6 @@ const handlerPostRequest = async (req, res) => {
                 id: user.id,
             },
             data: {
-
                 token: refreshToken,
             }
         });

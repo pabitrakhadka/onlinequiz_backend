@@ -107,6 +107,15 @@ const idValidate = () => Joi.number()
     });
 
 
+const createCategoryIdValidate = () => {
+    return Joi.number()
+        .required()
+        .messages({
+            'number.base': '"CategoryId" should be a number',
+            'any.required': '"CategoryId" is required',
+        });
+};
+
 const quizSchema = Joi.object({
     question: Joi.string()
         .required()
@@ -120,13 +129,7 @@ const quizSchema = Joi.object({
             'string.base': '"Answer" should be a string',
             'string.empty': '"Answer" is required'
         }),
-    categoryId: Joi.number()
-        .required()
-        .messages({
-            'number.base': '"CategoryId" should be a number',
-            'number.empty': '"CategoryId" is required',
-            'any.required': '"CategoryId" is required'
-        }),
+    categoryId: createCategoryIdValidate(),
     options: Joi.array()
         .items(Joi.string().required())
         .length(4)
@@ -172,7 +175,7 @@ const newsSchema = Joi.object({
 //Subjective Question Schema
 const subjectiveQuestionSchema = Joi.object({
     question: questionValidate(),
-    categoryId: categoryValidate(),
+    categoryId: createCategoryIdValidate(),
     category: categoryValidate()
 });
 
@@ -290,5 +293,19 @@ const slugSchema = Joi.object({
     title: stringValidate(),
     description: stringValidate()
 });
+
+const reviewsSchema = Joi.object({
+    userId: idValidate(),
+    content: stringValidate(),
+    rating: Joi.number()
+        .integer()
+        .min(0)
+        .allow(null) // Allows null as a valid value
+        .messages({
+            'number.base': 'Rating must be a number.',
+            'number.min': 'Rating cannot be negative.',
+        }),
+
+})
 //Export Schemas
-export { registerSchema, loginSchema, quizSchema, newsSchema, subjectiveQuestionSchema, pdfFileSchema, contactSchema, CategorySchema, CategoriesSchema, userDetailsScoreSchema, slugSchema };
+export { registerSchema, loginSchema, quizSchema, newsSchema, subjectiveQuestionSchema, pdfFileSchema, contactSchema, CategorySchema, CategoriesSchema, userDetailsScoreSchema, slugSchema, reviewsSchema };

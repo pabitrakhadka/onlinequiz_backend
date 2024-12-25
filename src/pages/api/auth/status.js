@@ -1,16 +1,23 @@
+import prisma from "@/db/db.config";
+import cors from "@/lib/cors-middleware";
+import { ConvertNumber } from "@/utils/FileUpload";
 import { generateAccessToken, verifyAccessToken, verifyRefreshToken } from "@/utils/token";
 import { serialize } from "cookie";
 
 export default async function handler(req, res) {
     try {
+
+        await cors(req, res);
         // Allow only GET requests
         if (req.method !== "GET") {
             return res.status(405).json({ message: "Method Not Allowed" });
         }
 
+
+
         const { accessToken, refreshToken } = req.cookies;
 
-        console.log("AccessToken and RefreshToken:", accessToken, refreshToken);
+
 
         // No accessToken present
         if (!accessToken) {
@@ -34,16 +41,29 @@ export default async function handler(req, res) {
                         "Set-Cookie",
                         serialize("accessToken", newAccessToken, {
                             httpOnly: true,
-                            secure: process.env.NODE_ENV === "production",
-                            sameSite: "Lax",
-                            maxAge: 10 * 60, // 10 minutes
+                            secure: true,
+                            sameSite: "none",
+                            maxAge: 2 * 24 * 60 * 60,
                             path: "/",
                         })
                     );
 
+                    const user = await prisma.user.findFirst({
+                        where: {
+                            id: id
+                        }, select: {
+                            firstName: true,
+                            lastName: true
+                        }
+                    })
+                    const responseUser = {
+                        ...decoded?.data,
+                        ...user
+                    };
                     return res.status(200).json({
                         loggedIn: true,
-                        user: decoded.data, // Exclude any sensitive details here
+                        user: responseUser,
+
                         message: "Access token refreshed successfully.",
                     });
                 } else {
@@ -66,10 +86,24 @@ export default async function handler(req, res) {
             const decoded = verifyAccessToken(accessToken);
 
             if (decoded?.status) {
+
+                const user = await prisma.user.findFirst({
+                    where: {
+                        id: decoded?.data?.id
+                    },
+                    select: {
+                        firstName: true,
+                        lastName: true
+                    }
+                });
+                const responseUser = {
+                    ...decoded?.data,
+                    ...user
+                };
                 return res.status(200).json({
                     loggedIn: true,
                     message: "Access token is valid.",
-                    user: decoded.data, // Return user data
+                    user: responseUser
                 });
             } else {
                 return res.status(401).json({

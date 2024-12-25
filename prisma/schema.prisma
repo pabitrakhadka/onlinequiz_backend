@@ -14,6 +14,7 @@ model User {
   email     String   @unique
   password  String
   address   String
+  role      String   @default("user")
   token     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -22,6 +23,13 @@ model User {
   isActive Boolean       @default(true)
 
   QuizSession QuizSession[]
+  Reviews     Reviews[]
+}
+
+enum UserRole {
+  user
+  admin
+  superadmin
 }
 
 model UserDetails {
@@ -41,13 +49,13 @@ model Option {
 
 model QuizSession {
   id         Int      @id @default(autoincrement())
-  categoryId Int //like  id 1=set1 , set 2 of id 
+  categoryId Int
   userId     Int
   score      Float
   timeTaken  Int // time taken
   datePlayed DateTime @default(now())
   attempt    Int      @default(1) ///
-  position   Int? // Nullable for cases where ranking isn't calculated immediately
+  position   Int?
 
   // Relations
   category Category            @relation(fields: [categoryId], references: [id])
@@ -177,4 +185,16 @@ model Slug {
   id          Int    @id @default(autoincrement())
   title       String
   description String
+}
+
+model Reviews {
+  id          Int      @id @default(autoincrement())
+  content     String
+  isActive    Boolean  @default(true)
+  rating      Int      @default(0)
+  highlighted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updateAt    DateTime @updatedAt
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -5,7 +5,7 @@ import { ConvertNumber } from "@/utils/FileUpload";
 
 export default async function handler(req, res) {
     try {
-        // Initialize CORS middleware
+
         await cors(req, res);
 
         switch (req.method) {

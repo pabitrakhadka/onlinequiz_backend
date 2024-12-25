@@ -16,6 +16,7 @@ export default async function handler(req, res) {
                 break;
             case "GET":
                 await handleGetRequest(req, res);
+                break;
             case "PUT":
                 await handlePutRequest(req, res);
             case "DELETE":
@@ -64,6 +65,7 @@ const handlePostRequest = async (req, res) => {
 
 const handleGetRequest = async (req, res) => {
     try {
+
         const id = ConvertNumber(req?.query?.id);
         if (id) {
             const slug = await prisma.slug.findFirst({
@@ -74,14 +76,17 @@ const handleGetRequest = async (req, res) => {
             return res.status(200).json(slug);
         }
         const data = req?.query?.data;
-        if (data === "one") {
+        console.log("data=", data);
+        if (data === 'one') {
+
+            // console.log("data=", data);
             const ids = await prisma.slug.findMany({
                 select: {
                     id: true
                 }
             });
-
-            const id = getRandomId(ids);
+            const idList = ids.map(item => item.id);
+            const id = getRandomId(idList);
 
             const data = await prisma.slug.findFirst({
                 where: {
@@ -90,7 +95,7 @@ const handleGetRequest = async (req, res) => {
             });
             if (data) {
                 return res.status(200).json({
-                    message: "Update successfully",
+                    message: "Get successfully",
                     data: data,
                 });
             } else {

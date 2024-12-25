@@ -9,16 +9,16 @@ const setAuthCookies = async (res, accessToken, refreshToken) => {
         // Access Token Cookie
         serialize('accessToken', accessToken, {
             httpOnly: true,   // Prevent JavaScript access to the cookie
-            secure: false, // Only use HTTPS in production
+            secure: true, // Only use HTTPS in production
             sameSite: 'None',  // Allow cross-origin requests
-            maxAge: 10 * 60,   // Expires in 10 minutes
+            maxAge: 2 * 24 * 60 * 60,   // Expires in 10 minutes
             path: '/',         // Available across all routes
         }),
 
         // Refresh Token Cookie
         serialize('refreshToken', refreshToken, {
             httpOnly: true,   // Prevent JavaScript access to the cookie
-            secure: false,  // Only use HTTPS in production
+            secure: true,  // Only use HTTPS in production
             sameSite: 'None',  // Allow cross-origin requests
             maxAge: 30 * 24 * 60 * 60,  // Expires in 30 days
             path: '/',         // Available across all routes

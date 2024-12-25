@@ -191,6 +191,7 @@ const handlerGetRequest = async (req, res) => {
     try {
         // Convert the quizId query parameter
         const quizId = ConvertNumber(req.query?.quizId);
+        const quiz = req.query?.quiz;
 
         // If quizId is provided, return specific quiz data
         if (quizId) {
@@ -210,61 +211,114 @@ const handlerGetRequest = async (req, res) => {
         }
 
         // Default pagination parameters
-        const { page = 1, limit = 5, categoryId, previousFetchedIds } = req.query;
+        const { page = 1, limit = 5, categoryId, previousFetchedIds, topicName } = req.query;
 
-        // Convert query parameters to numbers
-        const pageNumber = parseInt(page, 10);
-        const limitNumber = parseInt(limit, 10);
-        const categoryNumber = categoryId ? ConvertNumber(categoryId) : null;
-        const alreadyFetchedIds = previousFetchedIds ? previousFetchedIds.split(",").map(Number) : [];
+        //fetch quiz by id
+        // Fetch quiz by ID
+        if (topicName && categoryId && limit && page) {
+            try {
+                console.log('Fetching quiz data');
 
-        // Validate pagination values
-        if (isNaN(pageNumber) || pageNumber < 1 || isNaN(limitNumber) || limitNumber < 1) {
-            return res.status(400).json({
-                status: false,
-                error: "Invalid page or limit value. Must be a positive number.",
+                const pageNumber = parseInt(page, 10);
+                const limitNumber = parseInt(limit, 10);
+
+                // Validate if page and limit are valid numbers
+                if (isNaN(pageNumber) || isNaN(limitNumber)) {
+                    return res.status(400).json({ error: 'Invalid page or limit parameter' });
+                }
+
+                const categoryNumber = categoryId ? ConvertNumber(categoryId) : null;
+                const skip = (pageNumber - 1) * limitNumber;
+
+                // First, count the total number of questions
+                const countTotalQuestion = await prisma.quiz.count({
+                    where: {
+                        categoryId: categoryNumber,
+                    },
+                });
+
+                // Fetch the questions with pagination
+                const data = await prisma.quiz.findMany({
+                    where: {
+                        categoryId: categoryNumber,
+                    },
+                    include: {
+                        options: true,
+                    },
+                    take: limitNumber,
+                    skip: skip,
+                });
+
+                return res.status(200).json({
+                    data: data,
+                    totalQuestion: countTotalQuestion,
+                    currentPage: pageNumber,
+                    totalPages: Math.ceil(countTotalQuestion / limitNumber),
+                });
+            } catch (error) {
+                console.error('Error fetching quiz data:', error);
+                return res.status(500).json({ error: 'Server error while fetching quiz data' });
+            }
+        }
+
+        if (quiz === "quiz") {
+            // Convert query parameters to numbers
+            const pageNumber = parseInt(page, 10);
+            const limitNumber = parseInt(limit, 10);
+            const categoryNumber = categoryId ? ConvertNumber(categoryId) : null;
+            const alreadyFetchedIds = previousFetchedIds ? previousFetchedIds.split(",").map(Number) : [];
+
+
+            // Validate pagination values
+            if (isNaN(pageNumber) || pageNumber < 1 || isNaN(limitNumber) || limitNumber < 1) {
+                return res.status(400).json({
+                    status: false,
+                    error: "Invalid page or limit value. Must be a positive number.",
+                });
+            }
+
+
+            // Pagination calculation
+            const skip = (pageNumber - 1) * limitNumber;
+
+            // Fetch questions and total count
+            const [questions, countTotalQuestion] = await Promise.all([
+                prisma.quiz.findMany({
+                    where: {
+                        categoryId: ConvertNumber(categoryId),
+                        NOT: {
+                            id: { in: alreadyFetchedIds },  // Exclude previously fetched quizzes
+                        },
+                    },
+                    include: {
+                        options: true,
+                    },
+                    take: limitNumber,
+                    skip: skip,
+                }),
+                prisma.quiz.count({
+                    where: {
+                        categoryId: ConvertNumber(categoryId),
+                        NOT: {
+                            id: { in: alreadyFetchedIds },  // Exclude previously fetched quizzes
+                        },
+                    },
+                }),
+            ]);
+
+            // Check if there are more quizzes
+            const hasMoreQuizzes = questions.length < countTotalQuestion;
+
+            // Respond with data
+            return res.status(200).json({
+                data: questions,
+                totalQuestion: countTotalQuestion,
+                currentPage: pageNumber,
+                totalPages: Math.ceil(countTotalQuestion / limitNumber),
+                hasMore: hasMoreQuizzes, // To help the frontend decide if more quizzes can be fetched
             });
         }
 
-        // Pagination calculation
-        const skip = (pageNumber - 1) * limitNumber;
-
-        // Fetch questions and total count
-        const [questions, countTotalQuestion] = await Promise.all([
-            prisma.quiz.findMany({
-                where: {
-                    categoryId: categoryNumber,
-                    NOT: {
-                        id: { in: alreadyFetchedIds },  // Exclude previously fetched quizzes
-                    },
-                },
-                include: {
-                    options: true,
-                },
-                take: limitNumber,
-                skip: skip,
-            }),
-            prisma.quiz.count({
-                where: {
-                    categoryId: categoryNumber,
-                    NOT: {
-                        id: { in: alreadyFetchedIds },  // Exclude previously fetched quizzes
-                    },
-                },
-            }),
-        ]);
-
-        // Check if there are more quizzes
-        const hasMoreQuizzes = questions.length < countTotalQuestion;
-
-        // Respond with data
-        return res.status(200).json({
-            data: questions,
-            totalQuestion: countTotalQuestion,
-            currentPage: pageNumber,
-            totalPages: Math.ceil(countTotalQuestion / limitNumber),
-            hasMore: hasMoreQuizzes, // To help the frontend decide if more quizzes can be fetched
-        });
     } catch (error) {
         console.error("Error fetching quizzes:", error.message || error);
         return res.status(500).json({ status: false, error: "Internal Server Error" });

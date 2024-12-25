@@ -2,6 +2,7 @@
 import prisma from "@/db/db.config";
 import cors from "@/lib/cors-middleware";
 import { ConvertNumber, imageUpload } from "@/utils/FileUpload";
+import { getRandomId } from "@/utils/getRandomId";
 
 export default async function handler(req, res) {
     try {
@@ -14,6 +15,7 @@ export default async function handler(req, res) {
                 break;
             case "GET":
                 await handleGetRequest(req, res);
+                break;
             case "PUT":
                 await handlePutRequest(req, res);
                 break;
@@ -64,29 +66,63 @@ const handlePostRequest = async (req, res) => {
 }
 
 const handleGetRequest = async (req, res) => {
-    const limit = ConvertNumber(req.query?.limi) || 5;
-    const page = ConvertNumber(req.query?.page) || 1;
-    const skip = (page - 1) * limit;
-
     try {
+        // Extract and parse query parameters with defaults
+        const limit = ConvertNumber(req.query?.limit) || 5; // Fixed typo in `limi` -> `limit`
+        const page = ConvertNumber(req.query?.page) || 1;
+        const skip = (page - 1) * limit;
+
+        const data = req.query?.data;
+
+
+
+        if (data === 'one') {
+            // Fetch all IDs from `slug`
+            const ids = await prisma.sliderImage.findMany({
+                select: { id: true },
+            });
+            console.log("ids=", ids);
+
+            if (!ids.length) {
+                return res.status(404).json({ message: "No IDs found in ImageSlide table" });
+            }
+            const idList = ids.map(item => item.id);
+            //     // Get a random ID and fetch corresponding data
+            const id = getRandomId(idList); // Ensure `getRandomId` is implemented correctly
+            const data = await prisma.sliderImage.findFirst({ where: { id } });
+
+            if (data) {
+                return res.status(200).json({
+                    message: "Data fetched successfully",
+                    data: data
+                });
+            } else {
+                return res.status(404).json({ message: "No data found for the selected ID" });
+            }
+        }
+
+        // Fetch slider images with pagination
         const images = await prisma.sliderImage.findMany({
-            where: {
-                isActive: true
-            },
+            where: { isActive: true },
             take: limit,
-            skip: skip
+            skip: skip,
         });
 
         if (images.length > 0) {
-            res.status(200).json(images);
+            return res.status(200).json({
+                message: "Images fetched successfully",
+                data: images,
+            });
         } else {
-            res.status(404).json({ message: "No images found" });
+            return res.status(404).json({ message: "No active images found" });
         }
     } catch (error) {
         console.error("Error in Get request handler:", error);
-        res.status(500).json({ success: false, message: "Internal Server Error" });
+
+        // Send detailed error only in development mode
+        return res.status(504).json("eroor");
     }
-}
+};
 
 const handlePutRequest = async (req, res) => {
     try {
